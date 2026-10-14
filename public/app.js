@@ -142,11 +142,29 @@ function render() {
     .filter((p) => p.id !== self)
     .map(
       (p) =>
-        `<div class="opponent ${game.current === p.id && !game.winner ? "active" : ""}"><span class="player-avatar avatar-${players.indexOf(p) % 4}" aria-hidden="true">${escapeHtml(Array.from(p.name)[0].toUpperCase())}</span><span class="opponent-name">${escapeHtml(p.name)}</span><span class="opponent-count">${game.counts[p.id]} carte${game.counts[p.id] === 1 ? "" : "s"}</span>${game.uno.includes(p.id) ? '<span class="opponent-uno">UNO</span>' : ""}</div>`,
+        `<div class="opponent ${game.current === p.id && !game.winner ? "active" : ""}" data-player="${escapeHtml(p.id)}"><span class="player-avatar avatar-${players.indexOf(p) % 4}" aria-hidden="true">${escapeHtml(Array.from(p.name)[0].toUpperCase())}</span><span class="opponent-name">${escapeHtml(p.name)}</span><span class="opponent-count">${game.counts[p.id]} carte${game.counts[p.id] === 1 ? "" : "s"}</span>${game.uno.includes(p.id) ? '<span class="opponent-uno">UNO</span>' : ""}</div>`,
     )
     .join("");
   $("#discard-card").innerHTML = cardMarkup(game.top);
   $("#draw-card").disabled = !game.canDraw || paused;
+  $("#draw-card").setAttribute(
+    "aria-label",
+    game.pendingDraw
+      ? `Piocher ${game.pendingDraw} cartes et passer son tour`
+      : "Piocher une carte",
+  );
+  $("#draw-card").classList.toggle("has-penalty", game.pendingDraw > 0);
+  $("#draw-label").textContent = game.pendingDraw
+    ? `PIOCHER +${game.pendingDraw}`
+    : "PIOCHE";
+  $("#penalty-banner").classList.toggle("hidden", !game.pendingDraw);
+  $("#penalty-total").textContent = `+${game.pendingDraw}`;
+  const defense = game.top.value === "draw2" ? "un +2 ou un +4" : "un +4";
+  $("#penalty-message").textContent = game.pendingDraw
+    ? mine
+      ? `Posez ${defense}, ou piochez ${game.pendingDraw} cartes et passez.`
+      : `${playerName(game.current)} doit surenchérir ou piocher ${game.pendingDraw} cartes.`
+    : "";
   $("#draw-count").textContent = game.drawCount;
   $("#current-color").className = `current-color ${game.color}`;
   $("#current-color").textContent = `Couleur : ${colorNames[game.color]}`;
@@ -159,11 +177,13 @@ function render() {
       ? "On attend le retour de tout le monde."
       : !mine
         ? "Préparez votre prochain coup."
-        : game.canPass
-          ? "Jouez la carte piochée ou passez votre tour."
-          : game.playable.length
-            ? "Les cartes lumineuses sont à vous de jouer."
-            : "Pas de carte jouable ? Piochez au centre.";
+        : game.pendingDraw
+          ? `Empilez ${defense}, ou cliquez sur la pioche pour prendre +${game.pendingDraw}.`
+          : game.canPass
+            ? "Jouez la carte piochée ou passez votre tour."
+            : game.playable.length
+              ? "Les cartes lumineuses sont à vous de jouer."
+              : "Pas de carte jouable ? Piochez au centre.";
   $("#hand").innerHTML = game.hand
     .map((card) =>
       cardMarkup(card, !paused && game.playable.includes(card.id), true),
@@ -215,6 +235,7 @@ socket.on("connect", async () => {
   } else render();
 });
 socket.on("disconnect", () => {
+  gameEffects.reset();
   setConnection(false);
   render();
   if ($("#color-dialog").open) $("#color-dialog").close();
@@ -223,11 +244,30 @@ socket.on("connect_error", () => {
   setConnection(false);
 });
 socket.on("state", (next) => {
+  const previous = state;
   state = next;
   render();
+  const game = next.game;
+  // Initial snapshots, new rounds and resumes must not replay an old effect.
+  if (!game || game.roundId !== previous?.game?.roundId) gameEffects.reset();
+  else if (
+    game.lastAction &&
+    game.lastAction.id !== previous.game.lastAction?.id &&
+    next.players.every((p) => p.connected) &&
+    previous.players.every((p) => p.connected)
+  ) {
+    const name = (id) =>
+      next.players.find((p) => p.id === id)?.name || "Un joueur";
+    gameEffects.play(game.lastAction, {
+      actorName: name(game.lastAction.actor),
+      targetName: name(game.lastAction.target),
+      self: next.self,
+    });
+  }
 });
 socket.on("notice", (message) => notify(message));
 socket.on("left", () => {
+  gameEffects.reset();
   state = null;
   token = null;
   saveStorage("uno-session", null);

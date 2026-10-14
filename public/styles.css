@@ -25,6 +25,324 @@
   vertical-align: middle;
   flex: none;
 }
+
+/* Public server actions drive these non-blocking table effects. */
+.effect-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.special-effect {
+  --effect-color: var(--lime);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  animation: effect-arrive 1.3s both;
+  background: radial-gradient(
+    ellipse at center,
+    #11151cf5 0%,
+    #11151cdd 35%,
+    #11151c33 75%,
+    transparent
+  );
+}
+.special-effect::before {
+  content: "";
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  border: 2px solid var(--effect-color);
+  border-radius: 50%;
+  opacity: 0.3;
+  box-shadow:
+    0 0 80px color-mix(in srgb, var(--effect-color) 35%, transparent),
+    inset 0 0 50px color-mix(in srgb, var(--effect-color) 20%, transparent);
+  animation: effect-ring 1.25s ease-out both;
+  z-index: -1;
+}
+.effect-announcement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 20px 12px;
+  text-align: center;
+}
+.effect-kicker {
+  max-width: 75%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #d4d9d2;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.effect-symbol {
+  display: block;
+  color: var(--effect-color);
+  font-size: 92px;
+  font-weight: 900;
+  letter-spacing: -6px;
+  line-height: 1.2;
+  text-shadow: 0 0 45px color-mix(in srgb, var(--effect-color) 40%, transparent);
+  animation: effect-punch 550ms cubic-bezier(0.18, 0.89, 0.32, 1.3) both;
+}
+.effect-label {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+}
+.effect-detail {
+  max-width: 85%;
+  font-size: 11px;
+  color: #b1b9b6;
+}
+.effect-reverse .effect-symbol {
+  animation: reverse-clockwise 1.15s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.effect-reverse .effect-symbol.counterclockwise {
+  animation-name: reverse-counter;
+}
+.effect-skip .effect-symbol {
+  animation: skip-bounce 1s both;
+}
+.effect-wild::before,
+.effect-wild4::before {
+  border: 0;
+  background: conic-gradient(
+    var(--red),
+    var(--yellow),
+    var(--green),
+    var(--blue),
+    var(--red)
+  );
+  filter: blur(30px);
+  opacity: 0.25;
+  animation: color-bloom 1.3s both;
+}
+.effect-wild4 .effect-symbol {
+  background: linear-gradient(
+    100deg,
+    var(--red),
+    var(--yellow),
+    var(--green),
+    var(--blue)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.effect-orbit {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.effect-particle {
+  width: 24px;
+  height: 35px;
+  border: 2px solid #ffffffb0;
+  border-radius: 5px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: var(--particle-color);
+  box-shadow: 0 0 25px
+    color-mix(in srgb, var(--particle-color) 30%, transparent);
+  animation: particle-burst 1.2s ease-out both;
+}
+.particle-0 {
+  --particle-color: var(--red);
+  --x: -120px;
+  --y: -60px;
+  --r: -26deg;
+}
+.particle-1 {
+  --particle-color: var(--blue);
+  --x: 110px;
+  --y: -65px;
+  --r: 20deg;
+}
+.particle-2 {
+  --particle-color: var(--green);
+  --x: -125px;
+  --y: 55px;
+  --r: -16deg;
+}
+.particle-3 {
+  --particle-color: var(--yellow);
+  --x: 115px;
+  --y: 60px;
+  --r: 33deg;
+}
+.effect-draw2 .effect-particle {
+  background: var(--effect-color);
+}
+.effect-fly-card {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 52px;
+  border: 2px solid #dce8d2;
+  border-radius: 6px;
+  background: #29362e;
+  color: var(--lime);
+  font-size: 23px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  box-shadow: 0 3px 15px #0005;
+  z-index: 2;
+}
+.penalty-banner {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 14px 0 0;
+  padding: 12px 16px;
+  background: linear-gradient(110deg, #f4c36316, #f05c6708);
+  border: 1px solid #f4c36338;
+  border-radius: 13px;
+  color: #ebdec8;
+  font-size: 11px;
+}
+.penalty-banner strong {
+  color: var(--yellow);
+  font-size: 25px;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.draw-pile.has-penalty {
+  border-color: var(--yellow);
+}
+.draw-pile.has-penalty:not(:disabled) {
+  box-shadow:
+    3px 3px 0 #a6b39a,
+    5px 5px 0 #303c32,
+    7px 7px 0 #a6b39a,
+    0 0 28px #f4c36333;
+}
+.draw-pile.has-penalty + .pile-caption {
+  color: var(--yellow);
+}
+@keyframes effect-arrive {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes effect-ring {
+  0% {
+    transform: scale(0.35);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+}
+@keyframes effect-punch {
+  0% {
+    transform: scale(0.15) rotate(-15deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.18) rotate(4deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes reverse-clockwise {
+  from {
+    transform: rotate(-220deg) scale(0.3);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+@keyframes reverse-counter {
+  from {
+    transform: rotate(220deg) scale(0.3);
+  }
+  to {
+    transform: rotate(-360deg) scale(1);
+  }
+}
+@keyframes skip-bounce {
+  0% {
+    transform: scale(0.1);
+  }
+  35% {
+    transform: scale(1.25) rotate(-12deg);
+  }
+  55% {
+    transform: scale(0.95) rotate(8deg);
+  }
+  75%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes color-bloom {
+  0% {
+    transform: scale(0.3) rotate(0);
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2) rotate(180deg);
+    opacity: 0;
+  }
+}
+@keyframes particle-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y)))
+      rotate(var(--r));
+    opacity: 0;
+  }
+}
+@media (max-width: 760px) {
+  .effect-symbol {
+    font-size: 78px;
+  }
+  .effect-label {
+    font-size: 18px;
+  }
+  .effect-detail {
+    font-size: 10px;
+  }
+  .penalty-banner {
+    padding: 11px 12px;
+    font-size: 10px;
+    gap: 10px;
+  }
+}
 @media (max-width: 760px) {
   body .intro h1 {
     font-size: clamp(50px, 14.5vw, 68px);

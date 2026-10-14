@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
 export const COLORS = ["red", "blue", "green", "yellow"];
 export class RuleError extends Error {}
@@ -60,6 +60,10 @@ export class Game {
     this.turn = 0;
     this.direction = 1;
     this.drawn = null;
+    this.pendingDraw = 0;
+    this.roundId = randomUUID();
+    this.actionSequence = 0;
+    this.lastAction = null;
     this.uno = new Set();
     this.winner = null;
     this.notice = "La partie commence !";
@@ -96,6 +100,13 @@ export class Game {
       (this.drawn && this.drawn !== card.id)
     )
       return false;
+    // House rule: +2 can receive +2 (any color) or +4; +4 only receives +4.
+    // During a chain the +4 color restriction is waived.
+    if (this.pendingDraw)
+      return (
+        card.value === "wild4" ||
+        (this.top.value === "draw2" && card.value === "draw2")
+      );
     if (card.value === "wild4")
       return !this.hands[id].some((c) => c.color === this.color);
     return (
@@ -129,6 +140,9 @@ export class Game {
     this.turn = this.nextIndex(steps);
     this.drawn = null;
   }
+  recordAction(action) {
+    this.lastAction = { id: ++this.actionSequence, ...action };
+  }
 
   play(id, cardId, color) {
     this.assertTurn(id);
@@ -138,6 +152,7 @@ export class Game {
     if (card.color === "wild")
       requireRule(COLORS.includes(color), "Choisissez une couleur.");
     this.penalizeMissedUno(id);
+    const previousColor = this.color;
     this.hands[id].splice(index, 1);
     this.discard.push(card);
     this.color = card.color === "wild" ? color : card.color;
@@ -148,25 +163,39 @@ export class Game {
       if (this.players.length === 2) steps = 2;
     }
     if (card.value === "skip") steps = 2;
+    const target = this.players[this.nextIndex()];
     if (card.value === "draw2" || card.value === "wild4") {
-      this.take(this.players[this.nextIndex()], card.value === "draw2" ? 2 : 4);
-      steps = 2;
+      this.pendingDraw += card.value === "draw2" ? 2 : 4;
     }
-    this.notice =
-      card.value === "draw2"
-        ? "+2 : le joueur suivant pioche et passe."
-        : card.value === "wild4"
-          ? "+4 : le joueur suivant pioche et passe."
-          : card.value === "reverse"
-            ? "Le sens du jeu est inversé."
-            : card.value === "skip"
-              ? "Le joueur suivant passe son tour."
-              : "Une carte a été jouée.";
+    const total = this.pendingDraw;
+    this.notice = total
+      ? `+${total} à piocher : surenchérissez avec ${card.value === "draw2" ? "un +2 ou un +4" : "un +4"}, ou piochez le total.`
+      : card.value === "reverse"
+        ? "Le sens du jeu est inversé."
+        : card.value === "skip"
+          ? "Le joueur suivant passe son tour."
+          : "Une carte a été jouée.";
     if (!this.hands[id].length) {
+      // A last-card win ends the chain: no player can play after victory.
+      if (this.pendingDraw) {
+        this.take(target, this.pendingDraw);
+        this.pendingDraw = 0;
+      }
       this.winner = id;
       this.notice = "La partie est terminée !";
     }
     this.advance(steps);
+    this.recordAction({
+      type: "play",
+      actor: id,
+      target,
+      card,
+      color: this.color,
+      previousColor,
+      direction: this.direction,
+      total,
+      settled: Boolean(this.winner),
+    });
   }
 
   draw(id) {
@@ -176,11 +205,24 @@ export class Game {
       "Vous avez déjà pioché. Jouez la carte piochée ou passez.",
     );
     this.penalizeMissedUno(id);
+    if (this.pendingDraw) {
+      const total = this.pendingDraw;
+      const before = this.hands[id].length;
+      this.take(id, total);
+      const amount = this.hands[id].length - before;
+      this.pendingDraw = 0;
+      this.uno.delete(id);
+      this.advance();
+      this.notice = `${amount} carte${amount === 1 ? "" : "s"} piochée${amount === 1 ? "" : "s"}. La chaîne est terminée, le joueur passe son tour.`;
+      this.recordAction({ type: "penalty", actor: id, amount, total });
+      return;
+    }
     const card = this.take(id, 1);
     this.uno.delete(id);
     this.notice = "Une carte a été piochée.";
     if (card && this.canPlay(id, card)) this.drawn = card.id;
     else this.advance();
+    this.recordAction({ type: "draw", actor: id, amount: card ? 1 : 0 });
   }
   pass(id) {
     this.assertTurn(id);
@@ -217,6 +259,9 @@ export class Game {
       ),
       uno: [...this.uno],
       notice: this.notice,
+      pendingDraw: this.pendingDraw,
+      roundId: this.roundId,
+      lastAction: this.lastAction,
     };
   }
 }

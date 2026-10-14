@@ -38,6 +38,7 @@ uno/
 │   ├── index.html      # Accueil, lobby, table et modales
 │   ├── styles.css      # Glassmorphisme, cartes CSS et responsive
 │   ├── app.js          # Client Socket.io, interactions et reconnexion
+│   ├── effects.js      # Animations des actions publiques validées par le serveur
 │   └── favicon.svg
 └── test/
     ├── game.test.js    # Règles et simulations complètes (2, 3 et 8 joueurs)
@@ -50,6 +51,8 @@ uno/
 - 108 cartes, 7 cartes par joueur, défausse et recyclage de la pioche en conservant la carte du dessus.
 - Validation des coups et des tours côté serveur. Chaque connexion reçoit uniquement sa propre main ; les autres mains sont représentées par leur taille.
 - +2, +4, Passe, Inversion, Joker et choix de couleur. À deux, Inversion fait rejouer le même joueur.
+- Cumul des pénalités : +2 sur +2, +4 sur +2, +4 sur +4. Le total reste visible et le joueur suivant peut surenchérir ou tout piocher en passant son tour.
+- Animations synchronisées des +2/+4, changement de couleur, Inversion et Passe, avec envol des cartes piochées. Elles ne bloquent pas les interactions et respectent la préférence système de réduction des animations.
 - Pioche volontaire possible : seule la carte piochée peut être jouée immédiatement, sinon le joueur peut passer. Une carte injouable fait passer automatiquement.
 - UNO : annonce avec deux cartes avant de jouer, ou avec une carte avant la prochaine action adverse. Un oubli entraîne deux cartes à la prochaine pioche ou carte jouée par un adversaire.
 - Victoire dès qu’une main est vide, avec application de la dernière pénalité éventuelle. L’hôte peut relancer une manche.
@@ -58,7 +61,16 @@ uno/
 
 ### Conventions de cette version
 
-La première carte est toujours un chiffre, et l’hôte commence. Les pénalités ne se cumulent pas : +2/+4 font piocher **et passer**. Le +4 est interdit si la main contient la couleur active ; le serveur applique cette règle, sans mécanisme de contestation. Une manche se joue sans score cumulé. Le bouton UNO peut être anticipé à deux cartes.
+La première carte est toujours un chiffre, et l’hôte commence. Cette version utilise la variante de **cumul des +** :
+
+- Sur un **+2** : un **+2 de n’importe quelle couleur** ou un **+4**.
+- Sur un **+4** : uniquement un **+4** ; un +2 reste interdit.
+- Le total s’additionne : `+2 → +2 → +4 → +4 = 12 cartes`. Tant qu’une pénalité est en attente, les autres cartes et l’action « passer » sont interdites.
+- Cliquer sur la pioche accepte tout le total et termine le tour, même si le joueur possède une carte pour surenchérir. Les cartes ainsi piochées ne sont pas jouables immédiatement.
+- La restriction habituelle du +4 (ne pas avoir la couleur actuelle) reste appliquée **pour ouvrir une chaîne**, et est levée **pour surenchérir** pendant une chaîne.
+- Si un joueur termine sa main avec un +, la victoire est immédiate : le joueur suivant pioche le total et la chaîne prend fin. Si les cartes disponibles ne suffisent pas, il pioche toutes celles qui restent après recyclage.
+
+Une manche se joue sans score cumulé ni contestation du +4. Le bouton UNO peut être anticipé à deux cartes.
 
 ## Protocole Socket.io
 
@@ -79,6 +91,8 @@ Couleurs : `red`, `blue`, `green`, `yellow`. Valeurs : `0`–`9`, `draw2`, `reve
 
 Le serveur émet `state` (salon et vue de jeu privée, avec `revision` croissante), `notice` (message ponctuel), et `left` (départ confirmé). Aucun token n’est diffusé aux autres joueurs. Le token de reprise reste dans le `sessionStorage` de l’onglet ; traitez-le comme un identifiant privé. Les noms sont affichés comme texte échappé, et les actions sont limitées à 60 requêtes par connexion sur 10 secondes.
 
+La vue de jeu expose `pendingDraw` (total à piocher), `roundId` (identifiant de manche), et `lastAction` (dernière action publique avec un identifiant croissant par manche). Une action de pioche contient uniquement son auteur et sa quantité, jamais les cartes reçues. Le client anime les nouvelles actions d’une manche déjà affichée ; un rechargement, une reconnexion, un changement de manche ou une annonce UNO ne rejouent pas un ancien effet. Les effets sont annulés au départ du salon et lorsque l’onglet passe en arrière-plan.
+
 ## Hébergement ultérieur
 
 Déployez sur un hébergeur qui exécute un **processus Node.js persistant**, avec `npm ci --omit=dev` puis `npm start`. Le serveur écoute sur `0.0.0.0` et respecte `PORT`. Le contrôle de santé est `GET /health` → `{ "status": "ok" }`. Servez le site et Socket.io sur le même domaine, en HTTPS, avec un proxy qui prend en charge les WebSockets et `/socket.io/`.
@@ -87,4 +101,4 @@ Cette version conserve les salons et les parties **en mémoire, sur une seule in
 
 ## Vérification
 
-`npm test` exécute 15 tests : composition du deck, distribution pour chaque effectif, coups interdits sans mutation, cartes spéciales, pioche et passe, recyclage, UNO, victoire, conservation des 108 cartes durant des parties simulées, ressources HTTP et parties avec huit vrais clients Socket.io, capacité des salons, contrôle de l’hôte, confidentialité, reconnexion, expiration et limitation des actions.
+`npm test` exécute 22 tests : composition du deck, distribution pour chaque effectif, coups interdits sans mutation, cartes spéciales et chaînes de pénalités (jusqu’à +12), pioche et passe, recyclage, UNO, victoire, identifiants et confidentialité des actions publiques, conservation des 108 cartes durant des parties simulées, ressources HTTP et parties avec huit vrais clients Socket.io, capacité des salons, contrôle de l’hôte, confidentialité, reconnexion, expiration et limitation des actions.

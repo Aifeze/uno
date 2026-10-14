@@ -57,6 +57,7 @@ test("HTTP serves the application, styles, Socket.io client and health endpoint"
     "/",
     "/styles.css",
     "/app.js",
+    "/effects.js",
     "/socket.io/socket.io.js",
     "/favicon.svg",
   ]) {
@@ -119,6 +120,17 @@ test("8 real clients: host authority, capacity, private hands, strict turns and 
   while (!host.state.game.winner && actions++ < 5000) {
     const actor = players.find((p) => p.state.self === host.state.game.current);
     const { game } = actor.state;
+    if (game.pendingDraw) {
+      assert.equal(game.canPass, false);
+      assert.equal(game.canDraw, true);
+      for (const id of game.playable) {
+        const card = game.hand.find((c) => c.id === id);
+        assert.ok(
+          card.value === "wild4" ||
+            (card.value === "draw2" && game.top.value === "draw2"),
+        );
+      }
+    }
     if (game.hand.length <= 2) {
       assert.equal((await send(actor, "game:uno")).ok, true);
       await sync(players, actor.state.revision);
@@ -131,6 +143,13 @@ test("8 real clients: host authority, capacity, private hands, strict turns and 
       : await send(actor, game.canPass ? "game:pass" : "game:draw");
     assert.equal(reply.ok, true, reply.error);
     await sync(players, actor.state.revision);
+    for (const player of players) {
+      assert.equal(player.state.game.pendingDraw, actor.state.game.pendingDraw);
+      assert.deepEqual(
+        player.state.game.lastAction,
+        actor.state.game.lastAction,
+      );
+    }
   }
   assert.ok(host.state.game.winner);
   assert.equal((await send(host, "game:start")).ok, true);

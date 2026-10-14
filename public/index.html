@@ -12,6 +12,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="/socket.io/socket.io.js" defer></script>
+    <script src="/effects.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
@@ -253,7 +254,8 @@
                     >
                       <span>u.</span></button
                     ><span class="pile-caption"
-                      >PIOCHE <b id="draw-count"></b
+                      ><span id="draw-label">PIOCHE</span>
+                      <b id="draw-count"></b
                     ></span>
                   </div>
                   <div class="pile-block">
@@ -267,11 +269,24 @@
                     >uno / together</span
                   >
                 </div>
+                <div
+                  class="effect-layer"
+                  id="effect-layer"
+                  aria-hidden="true"
+                ></div>
                 <div class="pause-overlay hidden" id="pause-overlay">
                   <span>◷</span>
                   <h3>On garde sa place.</h3>
                   <p>Un joueur se reconnecte… (60 s maximum)</p>
                 </div>
+              </div>
+              <div
+                class="penalty-banner hidden"
+                id="penalty-banner"
+                role="status"
+              >
+                <strong id="penalty-total"></strong>
+                <span id="penalty-message"></span>
               </div>
               <p class="game-notice" id="game-notice" aria-live="polite"></p>
               <div class="hand-heading">
@@ -370,13 +385,18 @@
         </li>
         <li>
           <strong>Faites tourner la partie.</strong> ↺ inverse le sens (et passe
-          le tour adverse à deux). ⊘ passe le joueur suivant. +2 et +4 font
-          piocher et passer, sans cumul.
+          le tour adverse à deux). ⊘ passe le joueur suivant.
+        </li>
+        <li>
+          <strong>Empilez les + !</strong> Sur un +2, posez un +2 (de n’importe
+          quelle couleur) ou un +4. Sur un +4, seul un +4 est permis. Le total
+          s’additionne. Sinon, cliquez sur la pioche : vous prenez tout et
+          passez votre tour. Exemple : +2 → +2 → +4 = 8 cartes.
         </li>
         <li>
           <strong>Le +4 se mérite.</strong> Jouable uniquement sans carte de la
-          couleur actuelle. Cette version vérifie la règle côté serveur, sans
-          contestation.
+          couleur actuelle, sauf pour surenchérir pendant une chaîne de +. Cette
+          version vérifie la règle côté serveur, sans contestation.
         </li>
         <li>
           <strong>N’oubliez pas UNO !</strong> Appuyez avec deux cartes avant de
@@ -385,7 +405,9 @@
         </li>
         <li>
           <strong>Plus de cartes, c’est gagné.</strong> Le premier à vider sa
-          main remporte la manche. L’hôte peut lancer la revanche.
+          main remporte la manche. Si la dernière carte est un +, le joueur
+          suivant pioche le total et la chaîne s’arrête. L’hôte peut lancer la
+          revanche.
         </li>
       </ol>
       <p class="rules-note">
