@@ -57,7 +57,8 @@ uno/
 - UNO : annonce avec **exactement une carte**, dans les **2 secondes** après avoir posé l’avant-dernière carte. Cliquer avec plusieurs cartes inflige immédiatement **+2**. Après le délai, les adversaires peuvent infliger **+2** via « Contre UNO » ; il n’y a plus de pénalité automatique.
 - Victoire dès qu’une main est vide, avec application de la dernière pénalité éventuelle. L’hôte peut relancer une manche.
 - Reconnexion pendant 60 secondes après coupure ou rechargement de l’onglet. La partie est mise en pause. Après expiration ou départ explicite d’un joueur, retour au lobby et réattribution de l’hôte si nécessaire.
-- Table circulaire : places attribuées dans l’ordre de jeu, votre place en bas, éventails de cartes adverses face cachée et nombre exact de cartes. Les éventails affichent au plus 7 dos pour rester lisibles, sans révéler les valeurs.
+- Table circulaire sur mobile et ovale sur PC : places attribuées dans l’ordre de jeu, votre place en bas, éventails de cartes adverses face cachée et nombre exact de cartes. Les éventails affichent au plus 7 dos pour rester lisibles, sans révéler les valeurs.
+- Sur PC, la partie utilise toute la largeur et s’adapte à la hauteur de la fenêtre : barre compacte, table, messages et main restent visibles sur un écran. Les grandes mains se chevauchent en éventail ; survolez une carte ou sélectionnez-la au clavier pour la faire ressortir. Les écrans de pause, de pénalité et de victoire conservent cette disposition.
 - Cartes jouables mises en valeur, fenêtre de choix de couleur, compte à rebours UNO et boutons de contre-UNO, navigation clavier et disposition mobile.
 
 ### Conventions de cette version

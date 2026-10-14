@@ -278,41 +278,47 @@
                 <div class="pause-overlay hidden" id="pause-overlay">
                   <span>◷</span>
                   <h3>On garde sa place.</h3>
-                  <p>Un joueur se reconnecte… (60 s maximum)</p>
+                  <p id="pause-message">
+                    Un joueur se reconnecte… (60 s maximum)
+                  </p>
                 </div>
               </div>
-              <div
-                class="penalty-banner hidden"
-                id="penalty-banner"
-                role="status"
-              >
-                <strong id="penalty-total"></strong>
-                <span id="penalty-message"></span>
-              </div>
-              <p class="game-notice" id="game-notice" aria-live="polite"></p>
-              <div class="hand-heading">
-                <div>
-                  <span class="section-label"
-                    >VOTRE MAIN <span id="hand-count"></span
-                  ></span>
-                  <p id="hand-hint">À vous de jouer.</p>
+              <div class="game-messages">
+                <div
+                  class="penalty-banner hidden"
+                  id="penalty-banner"
+                  role="status"
+                >
+                  <strong id="penalty-total"></strong>
+                  <span id="penalty-message"></span>
                 </div>
-                <div class="hand-actions">
-                  <button class="button secondary hidden" id="pass-turn">
-                    Passer →
-                  </button>
-                  <div class="uno-controls">
-                    <button
-                      class="button uno-button"
-                      id="say-uno"
-                      aria-describedby="uno-feedback"
-                    >
-                      UNO ! <span aria-hidden="true">✦</span></button
-                    ><span id="uno-feedback"></span>
+                <p class="game-notice" id="game-notice" aria-live="polite"></p>
+              </div>
+              <section class="hand-dock" aria-label="Votre main et vos actions">
+                <div class="hand-heading">
+                  <div>
+                    <span class="section-label"
+                      >VOTRE MAIN <span id="hand-count"></span
+                    ></span>
+                    <p id="hand-hint">À vous de jouer.</p>
+                  </div>
+                  <div class="hand-actions">
+                    <button class="button secondary hidden" id="pass-turn">
+                      Passer →
+                    </button>
+                    <div class="uno-controls">
+                      <button
+                        class="button uno-button"
+                        id="say-uno"
+                        aria-describedby="uno-feedback"
+                      >
+                        UNO ! <span aria-hidden="true">✦</span></button
+                      ><span id="uno-feedback"></span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="hand" id="hand" aria-label="Vos cartes"></div>
+                <div class="hand" id="hand" aria-label="Vos cartes"></div>
+              </section>
               <div class="glass winner-panel hidden" id="winner-panel">
                 <div>
                   <span class="eyebrow">BIEN JOUÉ ✦</span>

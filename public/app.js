@@ -93,6 +93,27 @@ function cardMarkup(card, playable = false, interactive = false) {
   const tag = interactive ? "button" : "div";
   return `<${tag} class="card card-${card.color}" ${interactive ? `type="button" data-card="${card.id}" ${playable ? "" : "disabled"}` : ""} aria-label="${escapeHtml(label)}"><span class="card-corner" aria-hidden="true">${symbol}</span><span class="card-value" aria-hidden="true">${symbol}</span><span class="card-corner bottom" aria-hidden="true">${symbol}</span></${tag}>`;
 }
+function fitHand() {
+  const hand = $("#hand");
+  if (!state?.game || !matchMedia("(min-width: 761px)").matches) return;
+  const cards = hand.children;
+  if (!cards.length || !hand.clientWidth) return;
+  const style = getComputedStyle(hand);
+  const available =
+    hand.clientWidth -
+    parseFloat(style.paddingLeft) -
+    parseFloat(style.paddingRight);
+  const cardWidth = cards[0].getBoundingClientRect().width;
+  const gap =
+    cards.length > 1
+      ? Math.min(
+          12,
+          (available - cards.length * cardWidth) / (cards.length - 1),
+        )
+      : 0;
+  hand.style.setProperty("--hand-gap", `${gap}px`);
+}
+new ResizeObserver(fitHand).observe($("#hand"));
 function renderOpponents(game, players, self) {
   const order = game.order;
   const start = order.indexOf(self);
@@ -172,6 +193,7 @@ function render() {
   $("#home").classList.toggle("hidden", Boolean(state));
   $("#room").classList.toggle("hidden", !state);
   $("#room").classList.toggle("playing", Boolean(state?.game));
+  document.body.classList.toggle("in-game", Boolean(state?.game));
   if (!state) return;
   const { players, game, self, host, code } = state;
   const isHost = host === self;
@@ -228,6 +250,10 @@ function render() {
     ? `PIOCHER +${game.pendingDraw}`
     : "PIOCHE";
   $("#penalty-banner").classList.toggle("hidden", !game.pendingDraw);
+  $(".game-messages").classList.toggle(
+    "has-penalty",
+    Boolean(game.pendingDraw),
+  );
   $("#penalty-total").textContent = `+${game.pendingDraw}`;
   const defense = game.top.value === "draw2" ? "un +2 ou un +4" : "un +4";
   $("#penalty-message").textContent = game.pendingDraw
@@ -239,6 +265,11 @@ function render() {
   $("#current-color").className = `current-color ${game.color}`;
   $("#current-color").textContent = `Couleur : ${colorNames[game.color]}`;
   $("#game-notice").textContent = game.notice;
+  $("#game-notice").title = game.notice;
+  const disconnected = players.filter((p) => !p.connected).map((p) => p.name);
+  $("#pause-message").textContent = disconnected.length
+    ? `En attente de ${disconnected.join(", ")}… (60 s maximum)`
+    : "Reconnexion au serveur…";
   $("#hand-count").textContent =
     `${game.hand.length} carte${game.hand.length === 1 ? "" : "s"}`;
   $("#hand-hint").textContent = game.winner
@@ -259,6 +290,7 @@ function render() {
       cardMarkup(card, !paused && game.playable.includes(card.id), true),
     )
     .join("");
+  fitHand();
   $("#pass-turn").classList.toggle("hidden", !game.canPass || paused);
   updateUnoControls();
   $("#say-uno").classList.toggle("announced", game.uno.includes(self));
