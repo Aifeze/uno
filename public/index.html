@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#11151c" />
+    <meta
+      name="description"
+      content="Votre prochaine soirée jeux commence ici. Créez un salon UNO privé et jouez avec vos amis en temps réel."
+    />
+    <title>UNO — À vous de jouer.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/socket.io/socket.io.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="noise"></div>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="UNO accueil"
+        ><span class="brand-mark">u.</span
+        ><span>uno<span class="brand-dot">/</span></span></a
+      >
+      <span class="header-caption"
+        >LES BONNES CARTES. LES BONNES PERSONNES.</span
+      >
+      <div class="header-actions">
+        <span class="connection" id="connection"><i></i>Connexion…</span
+        ><button class="button quiet rules-button" type="button">
+          Les règles
+          <span aria-hidden="true"
+            ><svg
+              class="icon-arrow"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="M5 19 19 5M5 5h14v14" /></svg
+          ></span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="home" id="home">
+        <div class="intro">
+          <div class="eyebrow">
+            <span class="tiny-stack" aria-hidden="true">▱</span> VOTRE SOIRÉE
+            JEUX, RÉINVENTÉE
+          </div>
+          <h1>Les amis.<br />Les cartes.<br /><span>Le chaos.</span></h1>
+          <p class="intro-copy">
+            Un classique, une nouvelle ambiance. Retrouvez vos amis autour d’une
+            partie de UNO. Le prochain +4 est peut-être pour vous.
+          </p>
+          <div class="social-proof">
+            <div class="mini-avatars">
+              <span>M</span><span>L</span><span>A</span><span>+</span>
+            </div>
+            <p>
+              De <strong>2 à 8 amis.</strong><br />Un navigateur. Et c’est
+              parti.
+            </p>
+          </div>
+          <div class="intro-tags">
+            <span>✧ Sans inscription</span><span>↔ En temps réel</span
+            ><span>◎ 100% entre amis</span>
+          </div>
+        </div>
+        <div class="home-right">
+          <div class="card-scene" aria-hidden="true">
+            <div class="orbit orbit-one"></div>
+            <div class="orbit orbit-two"></div>
+            <span class="spark spark-one">✧</span
+            ><span class="spark spark-two">+</span>
+            <div class="scene-card card card-blue">
+              <span class="card-corner">↺</span><span class="card-value">↺</span
+              ><span class="card-corner bottom">↺</span>
+            </div>
+            <div class="scene-card card card-red">
+              <span class="card-corner">+2</span
+              ><span class="card-value">+2</span
+              ><span class="card-corner bottom">+2</span>
+            </div>
+            <div class="scene-card card card-yellow">
+              <span class="card-corner">7</span><span class="card-value">7</span
+              ><span class="card-corner bottom">7</span>
+            </div>
+            <div class="floating-label"><i></i> Le fun n’attend pas.</div>
+          </div>
+          <div class="glass entry-panel">
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">ON SE FAIT UNE PARTIE ?</span>
+                <h2>Prenez place.</h2>
+              </div>
+              <span class="small-card-icon" aria-hidden="true">✦</span>
+            </div>
+            <form id="entry-form">
+              <label for="nickname"
+                >Votre pseudo <span>Votre future légende.</span></label
+              >
+              <input
+                id="nickname"
+                name="nickname"
+                maxlength="20"
+                placeholder="Ex. Le roi du +4"
+                autocomplete="nickname"
+                required
+              />
+              <button
+                class="button primary full"
+                type="submit"
+                id="create-room"
+              >
+                Créer un salon
+                <span aria-hidden="true"
+                  ><svg
+                    class="icon-arrow"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 19 19 5M5 5h14v14" /></svg
+                ></span>
+              </button>
+            </form>
+            <div class="divider"><span>ou rejoignez vos amis</span></div>
+            <form class="join-form" id="join-form">
+              <label class="sr-only" for="room-code">Code du salon</label
+              ><input
+                id="room-code"
+                name="code"
+                placeholder="UNO-1234"
+                maxlength="8"
+                autocomplete="off"
+                spellcheck="false"
+                required
+              /><button class="button secondary" type="submit">
+                Rejoindre <span aria-hidden="true">→</span>
+              </button>
+            </form>
+            <p class="panel-footnote">
+              <span aria-hidden="true">♧</span> Salon privé. Souvenirs partagés.
+            </p>
+          </div>
+        </div>
+        <div class="home-bottom">
+          <span
+            >UNE DERNIÈRE PARTIE ?
+            <span class="muted">ON CONNAÎT LA CHANSON.</span></span
+          ><span class="color-dots" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i
+          ></span>
+        </div>
+      </section>
+
+      <section class="room hidden" id="room" aria-label="Salon de jeu">
+        <div class="room-top">
+          <div>
+            <span class="eyebrow">VOTRE PETIT COIN DE CHAOS</span>
+            <h1 id="room-title">Le salon.</h1>
+          </div>
+          <div class="room-toolbar">
+            <button
+              class="button secondary copy-code"
+              id="copy-code"
+              title="Copier le code du salon"
+            >
+              <span class="muted">CODE</span><strong id="code-label"></strong
+              ><span aria-hidden="true">▣</span></button
+            ><button class="button quiet" id="leave-room">
+              Quitter
+              <span aria-hidden="true"
+                ><svg
+                  class="icon-arrow"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="M5 19 19 5M5 5h14v14" /></svg
+              ></span>
+            </button>
+          </div>
+        </div>
+        <div class="room-layout">
+          <aside class="glass players-panel">
+            <div class="section-label">
+              AUTOUR DE LA TABLE <span id="player-count">0/8</span>
+            </div>
+            <div id="player-list"></div>
+            <div class="invite-note">
+              <span aria-hidden="true">✧</span>
+              <h3>Plus on est de fous…</h3>
+              <p>
+                Partagez le code à vos amis.<br />Le salon accueille jusqu’à 8
+                joueurs.
+              </p>
+              <button class="button quiet full" id="copy-invite">
+                Copier le code
+                <span aria-hidden="true"
+                  ><svg
+                    class="icon-arrow"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 19 19 5M5 5h14v14" /></svg
+                ></span>
+              </button>
+            </div>
+          </aside>
+          <div class="play-area">
+            <div class="glass waiting" id="waiting">
+              <div class="waiting-art" aria-hidden="true">
+                <div class="card card-wild card-back"><span>u.</span></div>
+                <span class="waiting-spark">✧</span>
+              </div>
+              <span class="eyebrow"
+                >LES MEILLEURES PARTIES COMMENCENT À PLUSIEURS</span
+              >
+              <h2>La table est à vous.</h2>
+              <p id="waiting-message">Invitez un ami pour commencer.</p>
+              <button class="button primary" id="start-game">
+                Lancer la partie <span aria-hidden="true">→</span></button
+              ><span class="waiting-caption"
+                >7 cartes chacun. Une seule mission : toutes les poser.</span
+              >
+            </div>
+            <div class="game hidden" id="game">
+              <div class="game-status glass">
+                <span class="turn-label" id="turn-label"></span
+                ><span class="direction-label" id="direction-label"></span>
+              </div>
+              <div class="glass table" id="table">
+                <div class="opponents" id="opponents"></div>
+                <div class="table-center">
+                  <div class="pile-block">
+                    <button
+                      class="card card-back draw-pile"
+                      id="draw-card"
+                      aria-label="Piocher une carte"
+                    >
+                      <span>u.</span></button
+                    ><span class="pile-caption"
+                      >PIOCHE <b id="draw-count"></b
+                    ></span>
+                  </div>
+                  <div class="pile-block">
+                    <div id="discard-card"></div>
+                    <span class="pile-caption">DÉFAUSSE</span>
+                  </div>
+                </div>
+                <div class="table-bottom">
+                  <span class="current-color" id="current-color"></span
+                  ><span class="table-wordmark" aria-hidden="true"
+                    >uno / together</span
+                  >
+                </div>
+                <div class="pause-overlay hidden" id="pause-overlay">
+                  <span>◷</span>
+                  <h3>On garde sa place.</h3>
+                  <p>Un joueur se reconnecte… (60 s maximum)</p>
+                </div>
+              </div>
+              <p class="game-notice" id="game-notice" aria-live="polite"></p>
+              <div class="hand-heading">
+                <div>
+                  <span class="section-label"
+                    >VOTRE MAIN <span id="hand-count"></span
+                  ></span>
+                  <p id="hand-hint">À vous de jouer.</p>
+                </div>
+                <div class="hand-actions">
+                  <button class="button secondary hidden" id="pass-turn">
+                    Passer →</button
+                  ><button class="button uno-button" id="say-uno">
+                    UNO ! <span aria-hidden="true">✦</span>
+                  </button>
+                </div>
+              </div>
+              <div class="hand" id="hand" aria-label="Vos cartes"></div>
+              <div class="glass winner-panel hidden" id="winner-panel">
+                <div>
+                  <span class="eyebrow">BIEN JOUÉ ✦</span>
+                  <h2 id="winner-label"></h2>
+                  <p>Une revanche ? On ne va pas s’arrêter là.</p>
+                </div>
+                <button class="button primary" id="replay">
+                  Rejouer
+                  <svg
+                    class="icon-arrow"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 19 19 5M5 5h14v14" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span
+        >uno<span class="brand-dot">/</span>
+        <span class="muted"
+          >Un peu de stratégie. Beaucoup de mauvaise foi.</span
+        ></span
+      ><button class="footer-link rules-button">
+        Comment jouer
+        <svg
+          class="icon-arrow"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="M5 19 19 5M5 5h14v14" />
+        </svg>
+      </button>
+    </footer>
+    <div class="toast hidden" id="toast" role="status"></div>
+    <dialog id="color-dialog">
+      <button class="dialog-close" id="cancel-color" aria-label="Annuler">
+        ×</button
+      ><span class="eyebrow">À VOUS DE DÉCIDER</span>
+      <h2>Changez la couleur.</h2>
+      <p>Et peut-être le cours de la partie.</p>
+      <div class="color-choices">
+        <button class="color-choice red" data-color="red">Rouge</button
+        ><button class="color-choice blue" data-color="blue">Bleu</button
+        ><button class="color-choice green" data-color="green">Vert</button
+        ><button class="color-choice yellow" data-color="yellow">Jaune</button>
+      </div>
+    </dialog>
+    <dialog id="rules-dialog">
+      <button
+        class="dialog-close"
+        id="close-rules"
+        aria-label="Fermer les règles"
+      >
+        ×</button
+      ><span class="eyebrow">LE PETIT RAPPEL</span>
+      <h2>Simple à jouer.<br />Difficile à quitter.</h2>
+      <ol>
+        <li>
+          <strong>Posez la bonne carte.</strong> Même couleur, même chiffre ou
+          même symbole que la défausse. Les jokers changent la couleur.
+        </li>
+        <li>
+          <strong>Pas de carte ? Piochez.</strong> Vous pouvez aussi piocher
+          volontairement. Seule la carte piochée peut alors être jouée ; sinon,
+          passez.
+        </li>
+        <li>
+          <strong>Faites tourner la partie.</strong> ↺ inverse le sens (et passe
+          le tour adverse à deux). ⊘ passe le joueur suivant. +2 et +4 font
+          piocher et passer, sans cumul.
+        </li>
+        <li>
+          <strong>Le +4 se mérite.</strong> Jouable uniquement sans carte de la
+          couleur actuelle. Cette version vérifie la règle côté serveur, sans
+          contestation.
+        </li>
+        <li>
+          <strong>N’oubliez pas UNO !</strong> Appuyez avec deux cartes avant de
+          jouer, ou avec une carte avant l’action suivante. Un oubli coûte deux
+          cartes à l’action suivante d’un adversaire.
+        </li>
+        <li>
+          <strong>Plus de cartes, c’est gagné.</strong> Le premier à vider sa
+          main remporte la manche. L’hôte peut lancer la revanche.
+        </li>
+      </ol>
+      <p class="rules-note">
+        2 à 8 joueurs · 108 cartes · 7 cartes par main.<br />Une carte chiffrée
+        ouvre la partie. Une déconnexion met le jeu en pause pendant 60 secondes
+        ; un départ définitif ramène tout le monde au lobby.
+      </p>
+      <button class="button primary full" id="understood">
+        À moi de jouer
+        <svg
+          class="icon-arrow"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="M5 19 19 5M5 5h14v14" />
+        </svg>
+      </button>
+    </dialog>
+  </body>
+</html>
