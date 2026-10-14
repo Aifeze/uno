@@ -26,8 +26,28 @@ export function createApp({ disconnectGrace = 60_000, actionLimit = 60 } = {}) {
   const sessions = new Map();
   const timers = new Set();
   let closing = false;
+  function clearUnoTimer(room) {
+    clearTimeout(room.unoTimer);
+    timers.delete(room.unoTimer);
+    room.unoTimer = null;
+  }
+  function scheduleUno(room) {
+    clearUnoTimer(room);
+    const deadline = room.game?.nextUnoDeadline();
+    if (deadline == null) return;
+    room.unoTimer = setTimeout(
+      () => {
+        timers.delete(room.unoTimer);
+        room.unoTimer = null;
+        if (!closing && rooms.get(room.code) === room) publish(room);
+      },
+      Math.max(1, deadline - Date.now() + 1),
+    );
+    timers.add(room.unoTimer);
+  }
   function publish(room) {
     room.revision = (room.revision || 0) + 1;
+    const serverNow = Date.now();
     for (const player of room.players) {
       if (!player.socketId) continue;
       io.to(player.socketId).emit("state", {
@@ -35,6 +55,7 @@ export function createApp({ disconnectGrace = 60_000, actionLimit = 60 } = {}) {
         host: room.host,
         self: player.id,
         revision: room.revision,
+        serverNow,
         players: room.players.map(({ id, name, socketId }) => ({
           id,
           name,
@@ -43,6 +64,7 @@ export function createApp({ disconnectGrace = 60_000, actionLimit = 60 } = {}) {
         game: room.game?.view(player.id) ?? null,
       });
     }
+    scheduleUno(room);
   }
   function remove(session) {
     const room = rooms.get(session.code);
@@ -52,6 +74,7 @@ export function createApp({ disconnectGrace = 60_000, actionLimit = 60 } = {}) {
     if (!room) return;
     room.players = room.players.filter((p) => p.id !== session.id);
     if (!room.players.length) {
+      clearUnoTimer(room);
       rooms.delete(room.code);
       return;
     }
@@ -185,6 +208,8 @@ export function createApp({ disconnectGrace = 60_000, actionLimit = 60 } = {}) {
       "game:draw": (game) => game.draw(session.id),
       "game:pass": (game) => game.pass(session.id),
       "game:uno": (game) => game.announceUno(session.id),
+      "game:counter-uno": (game, data) =>
+        game.counterUno(session.id, data.targetId, data.windowId),
     }))
       action(event, (data) => {
         const room = needGame();

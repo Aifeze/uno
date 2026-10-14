@@ -269,6 +269,7 @@
                     >uno / together</span
                   >
                 </div>
+                <div class="self-seat" id="self-seat"></div>
                 <div
                   class="effect-layer"
                   id="effect-layer"
@@ -298,10 +299,17 @@
                 </div>
                 <div class="hand-actions">
                   <button class="button secondary hidden" id="pass-turn">
-                    Passer →</button
-                  ><button class="button uno-button" id="say-uno">
-                    UNO ! <span aria-hidden="true">✦</span>
+                    Passer →
                   </button>
+                  <div class="uno-controls">
+                    <button
+                      class="button uno-button"
+                      id="say-uno"
+                      aria-describedby="uno-feedback"
+                    >
+                      UNO ! <span aria-hidden="true">✦</span></button
+                    ><span id="uno-feedback"></span>
+                  </div>
                 </div>
               </div>
               <div class="hand" id="hand" aria-label="Vos cartes"></div>
@@ -394,14 +402,17 @@
           passez votre tour. Exemple : +2 → +2 → +4 = 8 cartes.
         </li>
         <li>
-          <strong>Le +4 se mérite.</strong> Jouable uniquement sans carte de la
-          couleur actuelle, sauf pour surenchérir pendant une chaîne de +. Cette
-          version vérifie la règle côté serveur, sans contestation.
+          <strong>Le +4 est libre.</strong> Vous pouvez le jouer quelle que soit
+          votre main ou la couleur actuelle, à votre tour. Après une pioche,
+          seule la carte piochée peut être jouée immédiatement.
         </li>
         <li>
-          <strong>N’oubliez pas UNO !</strong> Appuyez avec deux cartes avant de
-          jouer, ou avec une carte avant l’action suivante. Un oubli coûte deux
-          cartes à l’action suivante d’un adversaire.
+          <strong>N’oubliez pas UNO !</strong> Après avoir posé votre
+          avant-dernière carte, vous avez 2 secondes pour cliquer sur UNO.
+          Annoncer avec plus d’une carte vous fait piocher 2 cartes. Après les 2
+          secondes, les autres joueurs peuvent cliquer sur « Contre UNO » près
+          de votre main pour vous faire piocher 2 cartes. Il n’y a pas de
+          pénalité automatique et une annonce tardive ne vous protège plus.
         </li>
         <li>
           <strong>Plus de cartes, c’est gagné.</strong> Le premier à vider sa
@@ -411,9 +422,10 @@
         </li>
       </ol>
       <p class="rules-note">
-        2 à 8 joueurs · 108 cartes · 7 cartes par main.<br />Une carte chiffrée
-        ouvre la partie. Une déconnexion met le jeu en pause pendant 60 secondes
-        ; un départ définitif ramène tout le monde au lobby.
+        2 à 8 joueurs · 108 cartes · 7 cartes par main.<br />L’ordre des joueurs
+        est tiré au hasard à chaque manche. Une carte chiffrée ouvre la partie.
+        Une déconnexion met le jeu en pause pendant 60 secondes ; un départ
+        définitif ramène tout le monde au lobby.
       </p>
       <button class="button primary full" id="understood">
         À moi de jouer

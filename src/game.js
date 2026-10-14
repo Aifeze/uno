@@ -37,23 +37,24 @@ export function createDeck() {
   return cards;
 }
 
-export function shuffle(cards) {
+export function shuffle(cards, pickIndex = randomInt) {
   for (let i = cards.length - 1; i > 0; i--) {
-    const j = randomInt(i + 1);
+    const j = pickIndex(i + 1);
     [cards[i], cards[j]] = [cards[j], cards[i]];
   }
   return cards;
 }
 
 export class Game {
-  constructor(playerIds) {
+  constructor(playerIds, { now = Date.now, pickIndex = randomInt } = {}) {
     requireRule(
       playerIds.length >= 2 &&
         playerIds.length <= 8 &&
         new Set(playerIds).size === playerIds.length,
       "Il faut entre 2 et 8 joueurs.",
     );
-    this.players = [...playerIds];
+    this.players = shuffle([...playerIds], pickIndex);
+    this.now = now;
     this.hands = Object.fromEntries(playerIds.map((id) => [id, []]));
     this.drawPile = shuffle(createDeck());
     this.discard = [];
@@ -65,6 +66,7 @@ export class Game {
     this.actionSequence = 0;
     this.lastAction = null;
     this.uno = new Set();
+    this.unoWindows = new Map();
     this.winner = null;
     this.notice = "La partie commence !";
     for (let i = 0; i < 7; i++) for (const id of playerIds) this.take(id, 1);
@@ -101,14 +103,11 @@ export class Game {
     )
       return false;
     // House rule: +2 can receive +2 (any color) or +4; +4 only receives +4.
-    // During a chain the +4 color restriction is waived.
     if (this.pendingDraw)
       return (
         card.value === "wild4" ||
         (this.top.value === "draw2" && card.value === "draw2")
       );
-    if (card.value === "wild4")
-      return !this.hands[id].some((c) => c.color === this.color);
     return (
       card.color === "wild" ||
       card.color === this.color ||
@@ -127,14 +126,18 @@ export class Game {
       taken = this.drawPile.pop();
       this.hands[id].push(taken);
     }
-    if (this.hands[id].length > 2) this.uno.delete(id);
+    if (this.hands[id].length !== 1) {
+      this.uno.delete(id);
+      this.unoWindows.delete(id);
+    }
     return taken;
   }
-  penalizeMissedUno(actor) {
-    for (const id of this.players) {
-      if (id !== actor && this.hands[id].length === 1 && !this.uno.has(id))
-        this.take(id, 2);
-    }
+  nextUnoDeadline() {
+    if (this.winner) return null;
+    const deadlines = [...this.unoWindows.values()]
+      .map((w) => w.expiresAt)
+      .filter((t) => t > this.now());
+    return deadlines.length ? Math.min(...deadlines) : null;
   }
   advance(steps = 1) {
     this.turn = this.nextIndex(steps);
@@ -151,12 +154,20 @@ export class Game {
     requireRule(this.canPlay(id, card), "Cette carte ne peut pas être jouée.");
     if (card.color === "wild")
       requireRule(COLORS.includes(color), "Choisissez une couleur.");
-    this.penalizeMissedUno(id);
     const previousColor = this.color;
     this.hands[id].splice(index, 1);
     this.discard.push(card);
     this.color = card.color === "wild" ? color : card.color;
-    if (this.hands[id].length !== 1) this.uno.delete(id);
+    if (this.hands[id].length === 1) {
+      this.uno.delete(id);
+      this.unoWindows.set(id, {
+        id: randomUUID(),
+        expiresAt: this.now() + 2000,
+      });
+    } else {
+      this.uno.delete(id);
+      this.unoWindows.delete(id);
+    }
     let steps = 1;
     if (card.value === "reverse") {
       this.direction *= -1;
@@ -182,6 +193,7 @@ export class Game {
         this.pendingDraw = 0;
       }
       this.winner = id;
+      this.unoWindows.clear();
       this.notice = "La partie est terminée !";
     }
     this.advance(steps);
@@ -204,21 +216,18 @@ export class Game {
       !this.drawn,
       "Vous avez déjà pioché. Jouez la carte piochée ou passez.",
     );
-    this.penalizeMissedUno(id);
     if (this.pendingDraw) {
       const total = this.pendingDraw;
       const before = this.hands[id].length;
       this.take(id, total);
       const amount = this.hands[id].length - before;
       this.pendingDraw = 0;
-      this.uno.delete(id);
       this.advance();
       this.notice = `${amount} carte${amount === 1 ? "" : "s"} piochée${amount === 1 ? "" : "s"}. La chaîne est terminée, le joueur passe son tour.`;
       this.recordAction({ type: "penalty", actor: id, amount, total });
       return;
     }
     const card = this.take(id, 1);
-    this.uno.delete(id);
     this.notice = "Une carte a été piochée.";
     if (card && this.canPlay(id, card)) this.drawn = card.id;
     else this.advance();
@@ -232,11 +241,63 @@ export class Game {
   }
   announceUno(id) {
     requireRule(
-      !this.winner && this.hands[id]?.length <= 2 && this.hands[id]?.length > 0,
-      "Annoncez UNO avec une ou deux cartes.",
+      !this.winner && Boolean(this.hands[id]),
+      "Aucune partie en cours pour ce joueur.",
+    );
+    if (this.hands[id].length > 1) {
+      this.unoPenalty(id, "falseUno");
+      return;
+    }
+    requireRule(
+      this.hands[id].length === 1,
+      "Il faut une carte pour annoncer UNO.",
+    );
+    if (this.uno.has(id)) return;
+    const window = this.unoWindows.get(id);
+    requireRule(
+      !window || this.now() < window.expiresAt,
+      "Les 2 secondes sont écoulées : vous pouvez être contre-UNO.",
     );
     this.uno.add(id);
+    this.unoWindows.delete(id);
     this.notice = "UNO !";
+  }
+  unoPenalty(id, reason, by = id) {
+    const before = this.hands[id].length;
+    this.take(id, 2);
+    this.unoWindows.delete(id);
+    this.uno.delete(id);
+    this.notice =
+      reason === "falseUno"
+        ? "Fausse annonce UNO : +2 cartes !"
+        : "Contre-UNO : +2 cartes pour le joueur pris en faute !";
+    this.recordAction({
+      type: "unoPenalty",
+      reason,
+      actor: id,
+      by,
+      amount: this.hands[id].length - before,
+    });
+  }
+  counterUno(id, targetId, windowId) {
+    requireRule(
+      !this.winner && Boolean(this.hands[id]),
+      "Aucune partie en cours pour ce joueur.",
+    );
+    const window = this.unoWindows.get(targetId);
+    requireRule(
+      id !== targetId &&
+        Boolean(window) &&
+        window.id === windowId &&
+        this.hands[targetId]?.length === 1 &&
+        !this.uno.has(targetId),
+      "Ce joueur ne peut pas être contre-UNO.",
+    );
+    requireRule(
+      this.now() >= window.expiresAt,
+      "Le joueur dispose encore de ses 2 secondes pour annoncer UNO.",
+    );
+    this.unoPenalty(targetId, "counterUno", id);
   }
 
   view(id) {
@@ -262,6 +323,18 @@ export class Game {
       pendingDraw: this.pendingDraw,
       roundId: this.roundId,
       lastAction: this.lastAction,
+      order: this.players,
+      unoWindows: Object.fromEntries(this.unoWindows),
+      counterTargets: this.winner
+        ? []
+        : [...this.unoWindows]
+            .filter(
+              ([target, w]) =>
+                target !== id &&
+                this.hands[target].length === 1 &&
+                this.now() >= w.expiresAt,
+            )
+            .map(([target]) => target),
     };
   }
 }

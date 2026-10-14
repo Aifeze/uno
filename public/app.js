@@ -25,6 +25,7 @@ let state = null;
 let pendingCard = null;
 let busy = false;
 let toastTimer;
+let serverOffset = 0;
 let token = readStorage("uno-session");
 function readStorage(key) {
   try {
@@ -92,6 +93,81 @@ function cardMarkup(card, playable = false, interactive = false) {
   const tag = interactive ? "button" : "div";
   return `<${tag} class="card card-${card.color}" ${interactive ? `type="button" data-card="${card.id}" ${playable ? "" : "disabled"}` : ""} aria-label="${escapeHtml(label)}"><span class="card-corner" aria-hidden="true">${symbol}</span><span class="card-value" aria-hidden="true">${symbol}</span><span class="card-corner bottom" aria-hidden="true">${symbol}</span></${tag}>`;
 }
+function renderOpponents(game, players, self) {
+  const order = game.order;
+  const start = order.indexOf(self);
+  const opponents = order.slice(start + 1).concat(order.slice(0, start));
+  $("#opponents").innerHTML = opponents
+    .map((id) => {
+      const p = players.find((player) => player.id === id);
+      const count = game.counts[id];
+      return `<div class="opponent ${game.current === id && !game.winner ? "active" : ""}" data-player="${escapeHtml(id)}">
+      <span class="player-avatar avatar-${players.indexOf(p) % 4}" aria-hidden="true">${escapeHtml(Array.from(p.name)[0].toUpperCase())}</span>
+      <span class="opponent-name">${escapeHtml(p.name)}</span>
+      <div class="opponent-cards" aria-hidden="true">${Array.from({ length: Math.min(count, 7) }, () => '<i class="opponent-card">u.</i>').join("")}</div>
+      <span class="opponent-count">${count} carte${count === 1 ? "" : "s"}</span>
+      ${game.uno.includes(id) ? '<span class="opponent-uno">UNO</span>' : ""}
+      <div class="uno-window" data-uno-player="${escapeHtml(id)}"><span class="uno-countdown"></span><button class="counter-uno" type="button" data-counter="${escapeHtml(id)}" title="Contre UNO : faire piocher 2 cartes">Contre UNO</button></div>
+    </div>`;
+    })
+    .join("");
+  $("#opponents")
+    .querySelectorAll(".opponent")
+    .forEach((seat, i) => {
+      const angle = Math.PI / 2 + ((i + 1) * 2 * Math.PI) / order.length;
+      seat.style.left = `${50 + Math.cos(angle) * 37}%`;
+      seat.style.top = `${50 + Math.sin(angle) * 37}%`;
+      const backs = seat.querySelectorAll(".opponent-card");
+      backs.forEach((back, j) =>
+        back.style.setProperty(
+          "--fan-angle",
+          `${(j - (backs.length - 1) / 2) * 7}deg`,
+        ),
+      );
+    });
+  const me = players.find((p) => p.id === self);
+  $("#self-seat").textContent =
+    `${me.name} · Vous${game.current === self && !game.winner ? " · À vous !" : ""}`;
+  $("#self-seat").classList.toggle(
+    "active",
+    game.current === self && !game.winner,
+  );
+}
+function updateUnoControls() {
+  if (!state?.game) return;
+  const { game, self, players } = state;
+  const paused = !socket.connected || players.some((p) => !p.connected);
+  const time = Date.now() + serverOffset;
+  const ownWindow = game.unoWindows[self];
+  const late = ownWindow && time >= ownWindow.expiresAt;
+  $("#say-uno").disabled =
+    Boolean(game.winner) || paused || game.uno.includes(self) || Boolean(late);
+  $("#uno-feedback").textContent = ownWindow
+    ? late
+      ? "Délai écoulé : attention au contre-UNO !"
+      : `${Math.max(0, (ownWindow.expiresAt - time) / 1000).toFixed(1)} s pour annoncer UNO !`
+    : game.uno.includes(self)
+      ? "UNO annoncé."
+      : "Annoncez avec 1 carte. Sinon : +2.";
+  $("#uno-feedback").classList.toggle("urgent", Boolean(ownWindow));
+  document.querySelectorAll("[data-uno-player]").forEach((slot) => {
+    const id = slot.dataset.unoPlayer;
+    const window = game.unoWindows[id];
+    slot.classList.toggle("hidden", !window || Boolean(game.winner));
+    if (!window) return;
+    const counter = slot.querySelector("button");
+    const countdown = slot.querySelector("span");
+    const available = game.counterTargets.includes(id);
+    counter.classList.toggle("hidden", !available);
+    counter.disabled = paused;
+    countdown.classList.toggle("hidden", available);
+    countdown.textContent =
+      time < window.expiresAt
+        ? `UNO · ${Math.max(0, (window.expiresAt - time) / 1000).toFixed(1)} s`
+        : "UNO oublié…";
+  });
+}
+setInterval(updateUnoControls, 100);
 function render() {
   $("#home").classList.toggle("hidden", Boolean(state));
   $("#room").classList.toggle("hidden", !state);
@@ -138,13 +214,7 @@ function render() {
   $("#turn-label").classList.toggle("mine", mine);
   $("#direction-label").textContent =
     game.direction === 1 ? "↻ Sens horaire" : "↺ Sens inverse";
-  $("#opponents").innerHTML = players
-    .filter((p) => p.id !== self)
-    .map(
-      (p) =>
-        `<div class="opponent ${game.current === p.id && !game.winner ? "active" : ""}" data-player="${escapeHtml(p.id)}"><span class="player-avatar avatar-${players.indexOf(p) % 4}" aria-hidden="true">${escapeHtml(Array.from(p.name)[0].toUpperCase())}</span><span class="opponent-name">${escapeHtml(p.name)}</span><span class="opponent-count">${game.counts[p.id]} carte${game.counts[p.id] === 1 ? "" : "s"}</span>${game.uno.includes(p.id) ? '<span class="opponent-uno">UNO</span>' : ""}</div>`,
-    )
-    .join("");
+  renderOpponents(game, players, self);
   $("#discard-card").innerHTML = cardMarkup(game.top);
   $("#draw-card").disabled = !game.canDraw || paused;
   $("#draw-card").setAttribute(
@@ -190,11 +260,7 @@ function render() {
     )
     .join("");
   $("#pass-turn").classList.toggle("hidden", !game.canPass || paused);
-  $("#say-uno").disabled =
-    game.hand.length > 2 ||
-    Boolean(game.winner) ||
-    paused ||
-    game.uno.includes(self);
+  updateUnoControls();
   $("#say-uno").classList.toggle("announced", game.uno.includes(self));
   $("#say-uno").textContent = game.uno.includes(self) ? "UNO ✓" : "UNO ! ✦";
   $("#pause-overlay").classList.toggle(
@@ -245,6 +311,7 @@ socket.on("connect_error", () => {
 });
 socket.on("state", (next) => {
   const previous = state;
+  serverOffset = next.serverNow - Date.now();
   state = next;
   render();
   const game = next.game;
@@ -325,6 +392,13 @@ $("#copy-invite").addEventListener("click", copyCode);
 $("#draw-card").addEventListener("click", () => send("game:draw"));
 $("#pass-turn").addEventListener("click", () => send("game:pass"));
 $("#say-uno").addEventListener("click", () => send("game:uno"));
+$("#opponents").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-counter]");
+  if (!button || button.disabled) return;
+  const targetId = button.dataset.counter;
+  const window = state?.game?.unoWindows[targetId];
+  if (window) send("game:counter-uno", { targetId, windowId: window.id });
+});
 $("#hand").addEventListener("click", (event) => {
   const button = event.target.closest("[data-card]");
   if (!button || button.disabled || busy) return;

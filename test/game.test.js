@@ -4,8 +4,8 @@ import { createDeck, Game } from "../src/game.js";
 
 let nextId = 0;
 const card = (color, value) => ({ id: `test${nextId++}`, color, value });
-function fixture(ids = ["a", "b", "c"]) {
-  const game = new Game(ids);
+function fixture(ids = ["a", "b", "c"], options = {}) {
+  const game = new Game(ids, { pickIndex: (max) => max - 1, ...options });
   for (const id of ids)
     game.hands[id] = [
       card("blue", "2"),
@@ -213,12 +213,11 @@ test("matching action symbol is playable across colors", () => {
   assert.equal(game.color, "blue");
 });
 
-test("wild requires a color; +4 is forbidden with an active-color card", () => {
+test("+4 is legal with an active-color card; wild cards still need a valid chosen color and turn", () => {
   const game = fixture();
   const four = give(game, "a", "wild", "wild4");
   const red = give(game, "a", "red", "8");
-  assert.throws(() => game.play("a", four.id, "blue"));
-  game.hands.a = [four, card("blue", "2")];
+  assert.ok(game.canPlay("a", four));
   assert.throws(() => game.play("a", four.id, "purple"));
   game.play("a", four.id, "yellow");
   assert.equal(game.color, "yellow");
@@ -270,18 +269,140 @@ test("recycle preserves the top discard and recovers gracefully when deck is emp
   assert.equal(empty.current, "b");
 });
 
-test("UNO announcement prevents penalty; late announcement is allowed until next action", () => {
-  for (const timing of ["before", "after", "missing"]) {
+test("false UNO announcements with 2 or more cards incur +2 without changing the turn", () => {
+  for (const count of [2, 3, 7]) {
     const game = fixture();
-    const red = card("red", "9");
-    game.hands.a = [red, card("yellow", "3")];
-    if (timing === "before") game.announceUno("a");
-    game.play("a", red.id);
-    if (timing === "after") game.announceUno("a");
-    game.play("b", give(game, "b", "red", "7").id);
-    assert.equal(game.hands.a.length, timing === "missing" ? 3 : 1);
+    game.hands.b = Array.from({ length: count }, () => card("blue", "8"));
+    game.announceUno("b");
+    assert.equal(game.hands.b.length, count + 2);
+    assert.equal(game.current, "a");
+    assert.equal(game.uno.has("b"), false);
+    assert.equal(game.lastAction.reason, "falseUno");
+    assert.equal(game.lastAction.amount, 2);
   }
-  assert.throws(() => fixture().announceUno("a"));
+});
+
+test("UNO announced within 2 seconds protects the player; no pre-announcement is accepted", () => {
+  let time = 1000;
+  const game = fixture(undefined, { now: () => time });
+  const red = card("red", "9");
+  game.hands.a = [red, card("yellow", "3")];
+  game.play("a", red.id);
+  const window = game.unoWindows.get("a");
+  assert.equal(window.expiresAt, 3000);
+  time = 2999;
+  game.announceUno("a");
+  assert.ok(game.uno.has("a"));
+  assert.equal(game.unoWindows.has("a"), false);
+  const actionId = game.lastAction.id;
+  game.announceUno("a");
+  assert.equal(game.lastAction.id, actionId);
+  time = 3000;
+  assert.throws(() => game.counterUno("b", "a", window.id));
+});
+
+test("counter-UNO becomes valid exactly at 2000ms, once, with no automatic penalty", () => {
+  let time = 0;
+  const game = fixture(undefined, { now: () => time });
+  const red = card("red", "9");
+  game.hands.a = [red, card("yellow", "3")];
+  game.play("a", red.id);
+  const window = game.unoWindows.get("a");
+  time = 1999;
+  assert.deepEqual(game.view("c").counterTargets, []);
+  assert.throws(() => game.counterUno("c", "a", window.id));
+  time = 2000;
+  assert.throws(() => game.announceUno("a"));
+  game.play("b", give(game, "b", "red", "7").id);
+  assert.equal(
+    game.hands.a.length,
+    1,
+    "No automatic penalty on another action",
+  );
+  assert.deepEqual(game.view("b").counterTargets, ["a"]);
+  const turn = game.current;
+  game.counterUno("b", "a", window.id); // B is no longer the active player.
+  assert.equal(game.hands.a.length, 3);
+  assert.equal(game.current, turn);
+  assert.equal(game.lastAction.reason, "counterUno");
+  assert.equal(game.lastAction.by, "b");
+  assert.throws(() => game.counterUno("c", "a", window.id));
+});
+
+test("counter-UNO rejects self, unknown players and stale windows without mutating the game", () => {
+  let time = 0;
+  const game = fixture(undefined, { now: () => time });
+  game.hands.a = [card("red", "9"), card("yellow", "3")];
+  game.play("a", game.hands.a[0].id);
+  const oldWindow = game.unoWindows.get("a");
+  time = 2000;
+  const before = JSON.stringify(game.view("b"));
+  for (const [actor, target, window] of [
+    ["a", "a", oldWindow.id],
+    ["stranger", "a", oldWindow.id],
+    ["b", "stranger", oldWindow.id],
+    ["b", "a", "forged"],
+  ]) {
+    assert.throws(() => game.counterUno(actor, target, window));
+  }
+  assert.equal(JSON.stringify(game.view("b")), before);
+  game.counterUno("b", "a", oldWindow.id);
+  game.hands.a = [card("red", "7"), card("yellow", "1")];
+  game.turn = 0;
+  game.play("a", game.hands.a[0].id);
+  time = 4000;
+  assert.notEqual(game.unoWindows.get("a").id, oldWindow.id);
+  assert.throws(() => game.counterUno("b", "a", oldWindow.id));
+});
+
+test("UNO penalties preserve pending + chains and close windows when a hand grows", () => {
+  let time = 0;
+  const game = fixture(undefined, { now: () => time });
+  game.hands.a = [card("red", "draw2"), card("yellow", "3")];
+  game.play("a", game.hands.a[0].id);
+  const window = game.unoWindows.get("a");
+  time = 2000;
+  game.counterUno("c", "a", window.id);
+  assert.equal(game.pendingDraw, 2);
+  assert.equal(game.current, "b");
+  assert.equal(game.unoWindows.has("a"), false);
+  const before = game.hands.b.length;
+  game.announceUno("b");
+  assert.equal(game.hands.b.length, before + 2);
+  assert.equal(game.pendingDraw, 2);
+  game.draw("b");
+  assert.equal(game.hands.b.length, before + 4);
+  assert.equal(game.pendingDraw, 0);
+});
+
+test("counter-UNO cannot be repeated on an empty deck and is disabled after a victory", () => {
+  let time = 0;
+  const game = fixture(undefined, { now: () => time });
+  game.hands.a = [card("red", "9"), card("yellow", "3")];
+  game.play("a", game.hands.a[0].id);
+  const window = game.unoWindows.get("a");
+  game.drawPile = [];
+  game.discard = [game.top];
+  time = 2000;
+  game.counterUno("b", "a", window.id);
+  assert.equal(game.lastAction.amount, 0);
+  assert.throws(() => game.counterUno("b", "a", window.id));
+  game.hands.b = [card("red", "7")];
+  game.play("b", game.hands.b[0].id);
+  assert.deepEqual(game.view("a").counterTargets, []);
+  assert.throws(() => game.counterUno("c", "a", window.id));
+});
+
+test("seating and first player are shuffled together on each new round without mutating input", () => {
+  const ids = ["a", "b", "c", "d"];
+  const first = new Game(ids, { pickIndex: () => 0 });
+  const second = new Game(ids, { pickIndex: (max) => max - 1 });
+  assert.deepEqual(ids, ["a", "b", "c", "d"]);
+  assert.deepEqual(first.players, ["b", "c", "d", "a"]);
+  assert.equal(first.current, "b");
+  assert.deepEqual(second.players, ids);
+  assert.equal(second.current, "a");
+  assert.deepEqual(first.view("d").order, first.players);
 });
 
 test("last action card applies its effect and ends game; subsequent actions are rejected", () => {
@@ -304,7 +425,8 @@ test("complete simulated matches conserve all 108 cards and expose only the view
       let actions = 0;
       while (!game.winner && actions++ < 5000) {
         const id = game.current;
-        if (game.hands[id].length <= 2) game.announceUno(id);
+        if (game.hands[id].length === 1 && !game.uno.has(id))
+          game.announceUno(id);
         const view = game.view(id);
         const playable = game.hands[id].find((c) =>
           view.playable.includes(c.id),

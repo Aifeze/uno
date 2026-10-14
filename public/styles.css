@@ -2028,3 +2028,364 @@ dialog .primary {
     display: none;
   }
 }
+
+/* Seats follow the server's shuffled order, with the viewer at the bottom. */
+.table {
+  width: min(100%, 680px);
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 0;
+  margin-inline: auto;
+  border-radius: 50%;
+  overflow: visible;
+  background: radial-gradient(
+    circle at 50% 50%,
+    #45695024,
+    #18282018 58%,
+    #ffffff04 80%
+  );
+}
+.table::before {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border: 1px dashed #c6f78312;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.opponents {
+  position: absolute;
+  inset: 0;
+  display: block;
+  min-height: 0;
+  margin: 0;
+}
+.opponent {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 104px;
+  min-width: 0;
+  max-width: none;
+  gap: 0;
+}
+.opponent-name {
+  max-width: 95px;
+  margin-top: 4px;
+}
+.opponent-count {
+  color: #c4cdc6;
+}
+.opponent-cards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 4px 5px;
+}
+.opponent-card {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 35px;
+  margin-left: -15px;
+  border: 1.5px solid #dce8d2;
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    45deg,
+    #2e3d32,
+    #2e3d32 3px,
+    #35463a 3px,
+    #35463a 4px
+  );
+  color: var(--lime);
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -2px;
+  transform: rotate(var(--fan-angle));
+  transform-origin: 50% 100%;
+  box-shadow: 0 2px 5px #0004;
+}
+.opponent-card:first-child {
+  margin-left: 0;
+}
+.opponent.active .opponent-cards {
+  filter: drop-shadow(0 0 5px #c6f78345);
+}
+.opponent-uno {
+  right: -4px;
+  top: 0;
+}
+.uno-window {
+  height: 27px;
+  display: grid;
+  place-items: center;
+  margin-top: 3px;
+}
+.opponent .uno-window.hidden {
+  display: grid !important;
+  visibility: hidden;
+}
+.uno-countdown {
+  color: var(--yellow);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.counter-uno {
+  min-height: 26px;
+  border: 1px solid #f05c6777;
+  border-radius: 8px;
+  padding: 3px 8px;
+  background: #512b32;
+  color: #ffd6da;
+  font-size: 10px;
+  font-weight: 650;
+}
+.counter-uno:hover:not(:disabled) {
+  background: #793742;
+  box-shadow: 0 0 16px #f05c6725;
+}
+.table-center {
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  transform: translate(-50%, -50%);
+}
+.table-bottom {
+  position: absolute;
+  left: 50%;
+  top: 65%;
+  transform: translateX(-50%);
+  margin: 0;
+  flex-direction: column;
+  gap: 5px;
+  white-space: nowrap;
+}
+.table-wordmark {
+  font-size: 7px;
+  letter-spacing: 2px;
+}
+.self-seat {
+  position: absolute;
+  left: 50%;
+  top: 87%;
+  transform: translate(-50%, -50%);
+  max-width: 45%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: #1d2922;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: #b8c4bc;
+}
+.self-seat.active {
+  color: var(--lime);
+  border-color: #c6f78355;
+  box-shadow: 0 0 22px #c6f78315;
+}
+.pause-overlay {
+  border-radius: inherit;
+  overflow: hidden;
+}
+.uno-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 4px;
+}
+#uno-feedback {
+  color: var(--muted);
+  font-size: 9px;
+  max-width: 200px;
+  text-align: right;
+}
+#uno-feedback.urgent {
+  color: var(--yellow);
+}
+@media (max-width: 760px) {
+  .opponent {
+    width: 70px;
+    min-width: 0;
+    max-width: none;
+  }
+  .opponent .player-avatar {
+    width: 21px;
+    height: 21px;
+    border-radius: 7px;
+    font-size: 8px;
+  }
+  .opponent-name {
+    max-width: 67px;
+    margin-top: 2px;
+    font-size: 8px;
+  }
+  .opponent-count {
+    font-size: 8px;
+  }
+  .opponent-cards {
+    height: 31px;
+    padding: 3px 2px;
+  }
+  .opponent-card {
+    width: 17px;
+    height: 25px;
+    margin-left: -10px;
+    border-width: 1px;
+    font-size: 11px;
+    letter-spacing: -1px;
+    border-radius: 3px;
+  }
+  .opponent-uno {
+    font-size: 7px;
+    right: 0;
+    top: -5px;
+  }
+  .uno-window {
+    height: 22px;
+    margin-top: 1px;
+  }
+  .uno-countdown {
+    font-size: 7px;
+  }
+  .counter-uno {
+    font-size: 8px;
+    min-height: 23px;
+    padding: 3px 5px;
+    border-radius: 6px;
+  }
+  .table-center {
+    gap: 18px;
+  }
+  .table-center .card {
+    width: 53px;
+    height: 80px;
+    border-width: 3px;
+    border-radius: 7px;
+  }
+  .table-center .card-value {
+    font-size: 28px;
+  }
+  .table-center .card-corner {
+    font-size: 8px;
+    left: 2px;
+  }
+  .table-center .card-corner.bottom {
+    right: 2px;
+  }
+  .table-center .card-back > span {
+    font-size: 32px;
+  }
+  .pile-block {
+    gap: 7px;
+  }
+  .pile-caption {
+    font-size: 6px;
+    letter-spacing: 0.5px;
+  }
+  .table-bottom {
+    top: 65%;
+    gap: 3px;
+  }
+  .current-color {
+    font-size: 7px;
+    gap: 4px;
+  }
+  .current-color::before {
+    width: 5px;
+    height: 5px;
+  }
+  .table-wordmark {
+    font-size: 5px;
+    letter-spacing: 1px;
+  }
+  .self-seat {
+    padding: 5px 10px;
+    font-size: 8px;
+    max-width: 42%;
+  }
+  .hand-heading {
+    align-items: flex-start;
+  }
+  #uno-feedback {
+    font-size: 8px;
+    max-width: 155px;
+  }
+}
+@media (max-width: 360px) {
+  .table-center {
+    gap: 14px;
+  }
+  .table-center .card {
+    width: 45px;
+    height: 68px;
+  }
+  .table-center .card-value {
+    font-size: 24px;
+  }
+  .table-center .card-back > span {
+    font-size: 28px;
+  }
+  .pile-block {
+    gap: 5px;
+  }
+  .pile-caption {
+    font-size: 5px;
+  }
+}
+@media (max-width: 360px) {
+  .opponent .player-avatar {
+    display: none;
+  }
+  .opponent-name {
+    line-height: 11px;
+    margin-top: 0;
+  }
+  .opponent-count {
+    line-height: 10px;
+  }
+  .opponent.active .opponent-name {
+    color: var(--lime);
+  }
+  .opponent-cards {
+    height: 27px;
+  }
+  .opponent-card {
+    width: 15px;
+    height: 22px;
+    margin-left: -9px;
+    font-size: 10px;
+  }
+  .uno-window {
+    height: 20px;
+    margin-top: 1px;
+  }
+  .counter-uno {
+    min-height: 20px;
+    padding: 2px 5px;
+  }
+}
+@media (min-width: 361px) and (max-width: 440px) {
+  .opponent .player-avatar {
+    width: 18px;
+    height: 18px;
+  }
+  .opponent-name {
+    line-height: 10px;
+  }
+  .opponent-count {
+    line-height: 9px;
+  }
+  .opponent-cards {
+    height: 28px;
+  }
+  .uno-window {
+    height: 20px;
+  }
+  .counter-uno {
+    min-height: 20px;
+    padding: 2px 5px;
+  }
+}

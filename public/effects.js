@@ -100,7 +100,9 @@ const gameEffects = (() => {
     detail.className = "effect-detail";
     kicker.textContent = context.actorName;
     const value = action.card?.value;
-    const kind = action.type === "penalty" ? "penalty" : value;
+    const kind = ["penalty", "unoPenalty"].includes(action.type)
+      ? "penalty"
+      : value;
     effect.className = `special-effect effect-${kind}`;
     effect.dataset.action = action.id;
     effect.style.setProperty(
@@ -136,8 +138,16 @@ const gameEffects = (() => {
       detail.textContent = "Nouvelle couleur. Nouvelle stratégie.";
     } else {
       symbol.textContent = `+${action.amount}`;
-      label.textContent = "Fin de la chaîne !";
-      detail.textContent = `${context.actorName} pioche et passe son tour.`;
+      label.textContent =
+        action.type === "unoPenalty"
+          ? action.reason === "falseUno"
+            ? "Faux UNO !"
+            : "Contre-UNO !"
+          : "Fin de la chaîne !";
+      detail.textContent =
+        action.type === "unoPenalty"
+          ? `${context.actorName} reçoit ${action.amount} carte${action.amount === 1 ? "" : "s"} de pénalité.`
+          : `${context.actorName} pioche et passe son tour.`;
       flyCards(action.amount, action.actor, context.self);
     }
     // Colored orbiting cards emphasize + effects; four swatches emphasize wilds.
@@ -206,7 +216,7 @@ const gameEffects = (() => {
       return;
     }
     if (
-      action.type !== "penalty" &&
+      !["penalty", "unoPenalty"].includes(action.type) &&
       !["draw2", "wild4", "reverse", "skip", "wild"].includes(
         action.card?.value,
       )
