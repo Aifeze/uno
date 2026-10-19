@@ -59,7 +59,7 @@ uno/
 - Reconnexion pendant 60 secondes après coupure ou rechargement de l’onglet. La partie est mise en pause. Après expiration ou départ explicite d’un joueur, retour au lobby et réattribution de l’hôte si nécessaire.
 - Table circulaire sur mobile et ovale sur PC : places attribuées dans l’ordre de jeu, votre place en bas, éventails de cartes adverses face cachée et nombre exact de cartes. Les éventails affichent au plus 7 dos pour rester lisibles, sans révéler les valeurs.
 - Sur PC, la partie utilise toute la largeur et s’adapte à la hauteur de la fenêtre : barre compacte, table, messages et main restent visibles sur un écran. Les grandes mains se chevauchent en éventail ; survolez une carte ou sélectionnez-la au clavier pour la faire ressortir. Les écrans de pause, de pénalité et de victoire conservent cette disposition.
-- Cartes jouables mises en valeur, fenêtre de choix de couleur, compte à rebours UNO et boutons de contre-UNO, navigation clavier et disposition mobile.
+- Cartes jouables mises en valeur, fenêtre de choix de couleur, boutons UNO et contre-UNO sans compte à rebours ni alerte de délai, navigation clavier et disposition mobile.
 
 ### Conventions de cette version
 
@@ -103,7 +103,7 @@ Couleurs : `red`, `blue`, `green`, `yellow`. Valeurs : `0`–`9`, `draw2`, `reve
 
 Le serveur émet `state` (salon et vue de jeu privée, avec `revision` croissante), `notice` (message ponctuel), et `left` (départ confirmé). Aucun token n’est diffusé aux autres joueurs. Le token de reprise reste dans le `sessionStorage` de l’onglet ; traitez-le comme un identifiant privé. Les noms sont affichés comme texte échappé, et les actions sont limitées à 60 requêtes par connexion sur 10 secondes.
 
-La vue de jeu expose `pendingDraw` (total à piocher), `roundId` (identifiant de manche), `order` (ordre des places), `unoWindows` (identifiants et échéances des fenêtres de 2 secondes), `counterTargets` (cibles que le destinataire peut contrer) et `lastAction` (dernière action publique avec un identifiant croissant par manche). L’enveloppe `state.serverNow` permet au client d’afficher le compte à rebours selon l’heure du serveur. Une action de pioche ou de pénalité UNO contient sa quantité, jamais les cartes reçues. Le client anime les nouvelles actions d’une manche déjà affichée ; un rechargement, une reconnexion, un changement de manche ou une annonce UNO valide ne rejouent pas un ancien effet. Les effets sont annulés au départ du salon et lorsque l’onglet passe en arrière-plan.
+La vue de jeu expose `pendingDraw` (total à piocher), `roundId` (identifiant de manche), `order` (ordre des places), `unoWindows` (identifiants et échéances des fenêtres de 2 secondes), `counterTargets` (cibles que le destinataire peut contrer) et `lastAction` (dernière action publique avec un identifiant croissant par manche). Le serveur contrôle la protection de 2 secondes et diffuse la disponibilité du contre-UNO ; le client n’affiche aucun compte à rebours, avertissement de fin de protection ou message « UNO oublié ». Une action de pioche ou de pénalité UNO contient sa quantité, jamais les cartes reçues. Le client anime les nouvelles actions d’une manche déjà affichée ; un rechargement, une reconnexion, un changement de manche ou une annonce UNO valide ne rejouent pas un ancien effet. Les effets sont annulés au départ du salon et lorsque l’onglet passe en arrière-plan.
 
 ## Hébergement ultérieur
 

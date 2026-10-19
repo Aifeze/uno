@@ -2126,11 +2126,6 @@ dialog .primary {
   display: grid !important;
   visibility: hidden;
 }
-.uno-countdown {
-  color: var(--yellow);
-  font-size: 9px;
-  white-space: nowrap;
-}
 .counter-uno {
   min-height: 26px;
   border: 1px solid #f05c6777;
@@ -2202,9 +2197,6 @@ dialog .primary {
   max-width: 200px;
   text-align: right;
 }
-#uno-feedback.urgent {
-  color: var(--yellow);
-}
 @media (max-width: 760px) {
   .opponent {
     width: 70px;
@@ -2246,9 +2238,6 @@ dialog .primary {
   .uno-window {
     height: 22px;
     margin-top: 1px;
-  }
-  .uno-countdown {
-    font-size: 7px;
   }
   .counter-uno {
     font-size: 8px;

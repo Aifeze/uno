@@ -25,7 +25,6 @@ let state = null;
 let pendingCard = null;
 let busy = false;
 let toastTimer;
-let serverOffset = 0;
 let token = readStorage("uno-session");
 function readStorage(key) {
   try {
@@ -128,7 +127,7 @@ function renderOpponents(game, players, self) {
       <div class="opponent-cards" aria-hidden="true">${Array.from({ length: Math.min(count, 7) }, () => '<i class="opponent-card">u.</i>').join("")}</div>
       <span class="opponent-count">${count} carte${count === 1 ? "" : "s"}</span>
       ${game.uno.includes(id) ? '<span class="opponent-uno">UNO</span>' : ""}
-      <div class="uno-window" data-uno-player="${escapeHtml(id)}"><span class="uno-countdown"></span><button class="counter-uno" type="button" data-counter="${escapeHtml(id)}" title="Contre UNO : faire piocher 2 cartes">Contre UNO</button></div>
+      <div class="uno-window" data-uno-player="${escapeHtml(id)}"><button class="counter-uno" type="button" data-counter="${escapeHtml(id)}" title="Contre UNO : faire piocher 2 cartes">Contre UNO</button></div>
     </div>`;
     })
     .join("");
@@ -158,37 +157,18 @@ function updateUnoControls() {
   if (!state?.game) return;
   const { game, self, players } = state;
   const paused = !socket.connected || players.some((p) => !p.connected);
-  const time = Date.now() + serverOffset;
-  const ownWindow = game.unoWindows[self];
-  const late = ownWindow && time >= ownWindow.expiresAt;
   $("#say-uno").disabled =
     Boolean(game.winner) || paused || game.uno.includes(self);
-  $("#uno-feedback").textContent = ownWindow
-    ? late
-      ? "Annoncez UNO vite : un adversaire peut vous contrer !"
-      : `Protégé du contre-UNO encore ${Math.max(0, (ownWindow.expiresAt - time) / 1000).toFixed(1)} s`
-    : game.uno.includes(self)
-      ? "UNO annoncé."
-      : "Annoncez avec 1 carte. Sinon : +2.";
-  $("#uno-feedback").classList.toggle("urgent", Boolean(ownWindow));
+  $("#uno-feedback").textContent = game.uno.includes(self)
+    ? "UNO annoncé."
+    : "Annoncez avec 1 carte. Sinon : +2.";
   document.querySelectorAll("[data-uno-player]").forEach((slot) => {
     const id = slot.dataset.unoPlayer;
-    const window = game.unoWindows[id];
-    slot.classList.toggle("hidden", !window || Boolean(game.winner));
-    if (!window) return;
-    const counter = slot.querySelector("button");
-    const countdown = slot.querySelector("span");
     const available = game.counterTargets.includes(id);
-    counter.classList.toggle("hidden", !available);
-    counter.disabled = paused;
-    countdown.classList.toggle("hidden", available);
-    countdown.textContent =
-      time < window.expiresAt
-        ? `UNO · ${Math.max(0, (window.expiresAt - time) / 1000).toFixed(1)} s`
-        : "UNO oublié…";
+    slot.classList.toggle("hidden", !available || Boolean(game.winner));
+    slot.querySelector("button").disabled = paused;
   });
 }
-setInterval(updateUnoControls, 100);
 function render() {
   $("#home").classList.toggle("hidden", Boolean(state));
   $("#room").classList.toggle("hidden", !state);
@@ -343,7 +323,6 @@ socket.on("connect_error", () => {
 });
 socket.on("state", (next) => {
   const previous = state;
-  serverOffset = next.serverNow - Date.now();
   state = next;
   render();
   const game = next.game;
