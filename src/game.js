@@ -253,11 +253,8 @@ export class Game {
       "Il faut une carte pour annoncer UNO.",
     );
     if (this.uno.has(id)) return;
-    const window = this.unoWindows.get(id);
-    requireRule(
-      !window || this.now() < window.expiresAt,
-      "Les 2 secondes sont écoulées : vous pouvez être contre-UNO.",
-    );
+    // The grace period delays challenges, never the player's own declaration.
+    // Whichever valid action the server receives first closes this window.
     this.uno.add(id);
     this.unoWindows.delete(id);
     this.notice = "UNO !";
@@ -295,7 +292,7 @@ export class Game {
     );
     requireRule(
       this.now() >= window.expiresAt,
-      "Le joueur dispose encore de ses 2 secondes pour annoncer UNO.",
+      "Le joueur est encore protégé du contre-UNO pendant ses 2 premières secondes.",
     );
     this.unoPenalty(targetId, "counterUno", id);
   }

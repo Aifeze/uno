@@ -179,70 +179,95 @@ test("false UNO is penalized through Socket.io without changing the active playe
   assert.equal(a.state.game.lastAction.reason, "falseUno");
 });
 
-test("server broadcasts counter-UNO availability after 2 seconds without a new move", async (t) => {
-  const { connect } = await setup(t, { actionLimit: 20_000 });
-  const players = [await connect(), await connect(), await connect()];
-  const host = players[0];
-  await send(host, "room:enter", { name: "Alice", create: true });
-  for (let i = 1; i < players.length; i++)
-    await send(players[i], "room:enter", {
-      name: `Player ${i}`,
-      code: host.state.code,
-    });
-  await send(host, "game:start");
-  await sync(players, host.state.revision);
-  let actions = 0;
-  while (!Object.keys(host.state.game.unoWindows).length && actions++ < 5000) {
-    const actor = players.find((p) => p.state.self === host.state.game.current);
-    const game = actor.state.game;
-    const reply = game.playable.length
-      ? await send(actor, "game:play", {
-          cardId: game.playable[0],
-          color: "blue",
-        })
-      : await send(actor, game.canPass ? "game:pass" : "game:draw");
-    assert.equal(reply.ok, true, reply.error);
-    await sync(players, actor.state.revision);
-  }
-  const [targetId, window] =
-    Object.entries(host.state.game.unoWindows)[0] || [];
-  assert.ok(targetId, "A player must reach one card");
-  const target = players.find((p) => p.state.self === targetId);
-  const opponent = players.find(
-    (p) =>
-      p.state.self !== targetId && p.state.self !== host.state.game.current,
-  );
-  assert.ok(opponent);
-  const request = { targetId, windowId: window.id };
-  assert.equal((await send(opponent, "game:counter-uno", request)).ok, false);
-  const actionId = opponent.state.game.lastAction.id;
-  await waitState(opponent, (s) => s.game.counterTargets.includes(targetId));
-  assert.equal(
-    opponent.state.game.lastAction.id,
-    actionId,
-    "Deadline broadcast is not a played action",
-  );
-  assert.equal(opponent.state.game.counts[targetId], 1, "No automatic penalty");
-  assert.equal(
-    (await send(target, "game:uno")).ok,
-    false,
-    "Late announcement is refused",
-  );
-  assert.equal((await send(opponent, "game:counter-uno", request)).ok, true);
-  await sync(players, opponent.state.revision);
-  assert.equal(target.state.game.hand.length, 3);
-  assert.equal(opponent.state.game.lastAction.reason, "counterUno");
-  assert.equal(
-    (
-      await send(
-        players.find((p) => p !== target),
-        "game:counter-uno",
-        request,
-      )
-    ).ok,
-    false,
-  );
-});
+for (const first of ["counter", "uno"])
+  test(`after 2 seconds, ${first} received first wins the UNO race`, async (t) => {
+    const { connect } = await setup(t, { actionLimit: 20_000 });
+    const players = [await connect(), await connect(), await connect()];
+    const host = players[0];
+    await send(host, "room:enter", { name: "Alice", create: true });
+    for (let i = 1; i < players.length; i++)
+      await send(players[i], "room:enter", {
+        name: `Player ${i}`,
+        code: host.state.code,
+      });
+    await send(host, "game:start");
+    await sync(players, host.state.revision);
+    let actions = 0;
+    while (
+      !Object.keys(host.state.game.unoWindows).length &&
+      actions++ < 5000
+    ) {
+      const actor = players.find(
+        (p) => p.state.self === host.state.game.current,
+      );
+      const game = actor.state.game;
+      const reply = game.playable.length
+        ? await send(actor, "game:play", {
+            cardId: game.playable[0],
+            color: "blue",
+          })
+        : await send(actor, game.canPass ? "game:pass" : "game:draw");
+      assert.equal(reply.ok, true, reply.error);
+      await sync(players, actor.state.revision);
+    }
+    const [targetId, window] =
+      Object.entries(host.state.game.unoWindows)[0] || [];
+    assert.ok(targetId, "A player must reach one card");
+    const target = players.find((p) => p.state.self === targetId);
+    const opponent = players.find(
+      (p) =>
+        p.state.self !== targetId && p.state.self !== host.state.game.current,
+    );
+    assert.ok(opponent);
+    const request = { targetId, windowId: window.id };
+    assert.equal((await send(opponent, "game:counter-uno", request)).ok, false);
+    const actionId = opponent.state.game.lastAction.id;
+    await waitState(opponent, (s) => s.game.counterTargets.includes(targetId));
+    assert.equal(
+      opponent.state.game.lastAction.id,
+      actionId,
+      "Deadline broadcast is not a played action",
+    );
+    assert.equal(
+      opponent.state.game.counts[targetId],
+      1,
+      "No automatic penalty",
+    );
+    if (first === "uno") {
+      assert.equal(
+        (await send(target, "game:uno")).ok,
+        true,
+        "Late UNO is still accepted",
+      );
+      await sync(players, target.state.revision);
+      for (const player of players) {
+        assert.equal(player.state.game.counts[targetId], 1);
+        assert.ok(player.state.game.uno.includes(targetId));
+        assert.equal(player.state.game.unoWindows[targetId], undefined);
+        assert.ok(!player.state.game.counterTargets.includes(targetId));
+      }
+      assert.equal(
+        (await send(opponent, "game:counter-uno", request)).ok,
+        false,
+        "The previous challenge is stale after UNO",
+      );
+      return;
+    }
+    assert.equal((await send(opponent, "game:counter-uno", request)).ok, true);
+    await sync(players, opponent.state.revision);
+    assert.equal(target.state.game.hand.length, 3);
+    assert.equal(opponent.state.game.lastAction.reason, "counterUno");
+    assert.equal(
+      (
+        await send(
+          players.find((p) => p !== target),
+          "game:counter-uno",
+          request,
+        )
+      ).ok,
+      false,
+    );
+  });
 
 test("session resumes privately, disconnect pauses play, and leaving returns everyone to lobby", async (t) => {
   const { connect } = await setup(t);

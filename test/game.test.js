@@ -312,7 +312,6 @@ test("counter-UNO becomes valid exactly at 2000ms, once, with no automatic penal
   assert.deepEqual(game.view("c").counterTargets, []);
   assert.throws(() => game.counterUno("c", "a", window.id));
   time = 2000;
-  assert.throws(() => game.announceUno("a"));
   game.play("b", give(game, "b", "red", "7").id);
   assert.equal(
     game.hands.a.length,
@@ -327,6 +326,29 @@ test("counter-UNO becomes valid exactly at 2000ms, once, with no automatic penal
   assert.equal(game.lastAction.reason, "counterUno");
   assert.equal(game.lastAction.by, "b");
   assert.throws(() => game.counterUno("c", "a", window.id));
+});
+
+test("late UNO remains valid at and after the grace period until a counter wins the race", () => {
+  for (const delay of [2000, 2001, 60000]) {
+    let time = 0;
+    const game = fixture(undefined, { now: () => time });
+    game.hands.a = [card("red", "9"), card("yellow", "3")];
+    game.play("a", game.hands.a[0].id);
+    const window = game.unoWindows.get("a");
+    time = delay;
+    assert.deepEqual(game.view("b").counterTargets, ["a"]);
+    const turn = game.current;
+    const actionId = game.lastAction.id;
+    game.announceUno("a");
+    assert.equal(game.hands.a.length, 1);
+    assert.equal(game.current, turn);
+    assert.equal(game.lastAction.id, actionId);
+    assert.ok(game.uno.has("a"));
+    assert.equal(game.unoWindows.has("a"), false);
+    assert.deepEqual(game.view("b").counterTargets, []);
+    assert.throws(() => game.counterUno("b", "a", window.id));
+    assert.throws(() => game.counterUno("c", "a", window.id));
+  }
 });
 
 test("counter-UNO rejects self, unknown players and stale windows without mutating the game", () => {

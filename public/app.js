@@ -162,11 +162,11 @@ function updateUnoControls() {
   const ownWindow = game.unoWindows[self];
   const late = ownWindow && time >= ownWindow.expiresAt;
   $("#say-uno").disabled =
-    Boolean(game.winner) || paused || game.uno.includes(self) || Boolean(late);
+    Boolean(game.winner) || paused || game.uno.includes(self);
   $("#uno-feedback").textContent = ownWindow
     ? late
-      ? "Délai écoulé : attention au contre-UNO !"
-      : `${Math.max(0, (ownWindow.expiresAt - time) / 1000).toFixed(1)} s pour annoncer UNO !`
+      ? "Annoncez UNO vite : un adversaire peut vous contrer !"
+      : `Protégé du contre-UNO encore ${Math.max(0, (ownWindow.expiresAt - time) / 1000).toFixed(1)} s`
     : game.uno.includes(self)
       ? "UNO annoncé."
       : "Annoncez avec 1 carte. Sinon : +2.";
